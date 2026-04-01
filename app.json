@@ -1,4 +1,14 @@
 {
   "name": "1701-exemplo",
-  "slug": "1701-exemplo"
+  "slug": "1701-exemplo",
+  "scheme": "1701-exemplo",
+  "plugins": [
+    "expo-router"
+  ],
+  "android": {
+    "useNextNotationForAndroidPath": true
+  },
+  "ios": {
+    "supportsTablet": true
+  }
 }
