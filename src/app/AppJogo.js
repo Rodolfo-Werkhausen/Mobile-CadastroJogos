@@ -1,61 +1,66 @@
+import { useState, useEffect } from 'react';
+import { Link, Stack } from 'expo-router';
 import { View, Text, Image, StyleSheet, TextInput, Pressable, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 
 
 export default function App() {
 
-    const jogos = [
-        {
-            id: 1,
-            nome: "Dark Souls III",
-            descricao: "Dark Souls III continua a expandir os limites da famosa série Souls.",
-            imagem: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/374320/header.jpg"
-        },
+    const { id } = useLocalSearchParams();
 
-    ];
+    const [jogo, setJogo] = useState(null);
+
+    const [contador, setContador] = useState(0);
+
+    useEffect(() => {
+
+    const buscarJogo = async () => {
+
+        try {
+
+            const resposta = await fetch(
+                `https://store.steampowered.com/api/appdetails?appids=${id}`
+            );
+
+            const dados = await resposta.json();
+
+            const game = dados[id].data;
+
+            setJogo({
+                id: id,
+                nome: game.name,
+                descricao: game.short_description,
+                imagem: game.header_image
+            });
+
+        } catch (erro) {
+            console.log("Erro:", erro);
+        }
+
+    };
+
+    buscarJogo();
+
+}, []);
+
+if (!jogo) {
+    return (
+        <View>
+            <Text>Carregando...</Text>
+        </View>
+    );
+}
 
     return (
         <SafeAreaProvider>
             <SafeAreaView style={estilos.safeArea}>
-
-                {/* Cabeçalho */}
-                <View style={estilos.cabecalho}>
-                    <Pressable
-                        style={({ pressed }) => [
-                            estilos.botoesCabecalho,
-                            pressed && estilos.botaoPressionado
-                        ]}
-
-                        onPress={() => setTela("inicio")}
-                    >
-                        <Text style={estilos.textoBotao}>Inicio</Text>
-                    </Pressable>
-
-                    <Pressable
-                        style={({ pressed }) => [
-                            estilos.botoesCabecalho,
-                            pressed && estilos.botaoPressionado
-                        ]}
-                        onPress={() => setTela("biblioteca")}
-                    >
-                        <Text style={estilos.textoBotao}>Biblioteca</Text>
-                    </Pressable>
-
-                    <Pressable
-                        style={({ pressed }) => [
-                            estilos.botoesCabecalho,
-                            pressed && estilos.botaoPressionado
-                        ]}
-                        onPress={() => setTela("config")}
-                    >
-                        <Text style={estilos.textoBotao}>{'Config'}</Text>
-                    </Pressable>
-                </View>
+                <Stack.Screen options={{ headerShown: true }} />
 
                 <ScrollView showsVerticalScrollIndicator={false}>
-                    {jogos.map((jogo) => (
+                    
 
-                        <View style={estilos.conteudoPrincipal}>
+                        <View key={jogo.id} style={estilos.conteudoPrincipal}>
                             <Image
                                 style={estilos.imagensPrincipal}
                                 source={{ uri: jogo.imagem }}
@@ -68,40 +73,26 @@ export default function App() {
                                 {jogo.descricao}
                             </Text>
                             <View style={estilos.tituloSecao}>
-                                <Text style={estilos.textoTitulo}>Configurações</Text>
+                                <Text style={estilos.textoTitulo}>DAR LIKE</Text>
                             </View>
 
-                            <View style={estilos.cardConfig}>
-                                <Text style={estilos.tituloConfig}>Conta</Text>
-                                <Text style={estilos.itemConfig}>Editar Perfil</Text>
-                                <Text style={estilos.itemConfig}>Alterar Email</Text>
-                                <Text style={estilos.itemConfig}>Alterar Senha</Text>
-                            </View>
-
-                            <View style={estilos.cardConfig}>
-                                <Text style={estilos.tituloConfig}>Preferências</Text>
-                                <Text style={estilos.itemConfig}>Tema Escuro</Text>
-                                <Text style={estilos.itemConfig}>Idioma</Text>
-                                <Text style={estilos.itemConfig}>Notificações</Text>
-                            </View>
-
-                            <View style={estilos.cardConfig}>
-                                <Text style={estilos.tituloConfig}>Jogos</Text>
-                                <Text style={estilos.itemConfig}>Sincronizar Biblioteca</Text>
-                                <Text style={estilos.itemConfig}>Mostrar Jogos Concluídos</Text>
-                                <Text style={estilos.itemConfig}>Ordenar Biblioteca</Text>
-                            </View>
-
-                            <View style={estilos.cardConfig}>
-                                <Text style={estilos.tituloConfig}>Outros</Text>
-                                <Text style={estilos.itemConfig}>Ajuda</Text>
-                                <Text style={estilos.itemConfig}>Sobre o App</Text>
-                                <Text style={estilos.itemConfig}>Versão 1.0</Text>
+                            <View>
+                                <View style={estilos.botoes}>
+                                <Text style={estilos.valor}>{contador}</Text>   
+                                    <TouchableOpacity
+                                        style={[estilos.botao, estilos.botaoSucesso]}
+                                        onPress={() => setContador(contador + 1)}
+                                    >
+                                        <Image style={[estilos.imagemLike]}source={require('./_Botón_Me_gusta.png')} />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         </View>
 
 
-                    ))}
+                    
+
+
                 </ScrollView>
             </SafeAreaView>
         </SafeAreaProvider>
@@ -203,7 +194,7 @@ const estilos = StyleSheet.create({
     },
 
     conteudoPrincipal: {
-        flexDirection: 'collumn',
+        flexDirection: 'column',
         backgroundColor: '#274857',
         width: '100%',
         borderRadius: 12,
@@ -331,6 +322,38 @@ const estilos = StyleSheet.create({
         color: '#fff',
         fontSize: 13,
         marginTop: 6
-    }
+    },
+
+    //
+
+    botoes: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+
+    botao: {
+        height: 48,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        minWidth: 20,
+        alignItems: 'center',
+    },
+    botaoSucesso: { backgroundColor: '#89b4fa' },
+    botaoTexto: {
+        fontWeight: 'bold',
+        color: '#1e1e2e',
+        fontSize: 16,
+    },
+    valor: {
+        fontSize: 34,
+        fontWeight: 'bold',
+        color: '#cdd6f4',
+        marginBottom: 16,
+    },
+    imagemLike: {
+        width: 24,
+        height: 24,
+    },
 
 });

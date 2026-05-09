@@ -3,7 +3,8 @@
   "slug": "1701-exemplo",
   "scheme": "1701-exemplo",
   "plugins": [
-    "expo-router"
+    "expo-router",
+    "expo-sqlite"
   ],
   "android": {
     "useNextNotationForAndroidPath": true

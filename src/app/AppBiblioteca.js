@@ -1,62 +1,193 @@
-import { Link, Stack} from 'expo-router';
-import { View, Text, Image, StyleSheet, TextInput, Pressable, ScrollView } from "react-native";
+import { useState, useEffect } from 'react';
+import { Link, Stack } from 'expo-router';
+import { View, Text, Image, StyleSheet, TextInput, Pressable, ScrollView, FlatList, Alert } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { db, initDb } from '../data/db';
+import { carregarJogos, cadastrarJogo, editarJogo, excluirJogo } from '../data/jogos';
 
+initDb();
 
-export default function App() {
+export default function HomeScreen() {
+  const [nome, setNome] = useState('');
+  const [conquistas, setConquistas] = useState('');
+  const [porcentagemConclusao, setPorcentagemConclusao] = useState('');
+  const [tempoJogo, setTempoJogo] = useState('');
+  const [jogos, setJogos] = useState([]);
+  const [editandoId, setEditandoId] = useState(null);
+
+  function listarJogos() {
+    setJogos(carregarJogos());
+  }
+
+  function somenteNumeros(valor) {
+    return valor.replace(/[^0-9]/g, '');
+  }
+
+  useEffect(() => {
+    listarJogos();
+  }, []);
+
+  function cadastrar() {
+    if (!nome.trim() || !conquistas.trim() || !porcentagemConclusao.trim() || !tempoJogo.trim()) {
+      Alert.alert('Atenção', 'Preencha todos os campos.');
+      return;
+    }
+
+    const numConquistas = parseInt(conquistas, 10);
+    const numPorcentagemConclusao = parseInt(porcentagemConclusao, 10);
+    const numTempoJogo = parseInt(tempoJogo, 10);
+
+    if (
+      Number.isNaN(numConquistas) ||
+      Number.isNaN(numPorcentagemConclusao) ||
+      Number.isNaN(numTempoJogo)
+    ) {
+      Alert.alert('Atenção', 'Digite valores numéricos válidos.');
+      return;
+    }
+
+    if (numPorcentagemConclusao < 0 || numPorcentagemConclusao > 100) {
+      Alert.alert('Atenção', 'A porcentagem deve estar entre 0 e 100.');
+      return;
+    }
+
+    if (editandoId !== null) {
+      editarJogo(editandoId, nome.trim(), numConquistas, numPorcentagemConclusao, numTempoJogo);
+    } else {
+      cadastrarJogo(nome.trim(), numConquistas, numPorcentagemConclusao, numTempoJogo);
+    }
+
+    limparFormulario();
+    listarJogos();
+  }
+
+  function editar(jogo) {
+    setEditandoId(jogo.id);
+    setNome(jogo.nome);
+    setConquistas(String(jogo.conquistas));
+    setPorcentagemConclusao(String(jogo.porcentagemConclusao));
+    setTempoJogo(String(jogo.tempoJogo));
+  }
+
+  function limparFormulario() {
+    setEditandoId(null);
+    setNome('');
+    setConquistas('');
+    setPorcentagemConclusao('');
+    setTempoJogo('');
+  }
+
+  function excluir(id, nome, conquistas, porcentagemConclusao, tempoJogo) {
+    Alert.alert('Excluir', `Remover "${nome}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: () => {
+          excluirJogo(id);
+          if (editandoId === id) {
+            limparFormulario();
+          }
+          listarJogos();
+        },
+      },
+    ]);
+  }
+
   return (
 
     <SafeAreaProvider>
       <SafeAreaView style={estilos.safeArea}>
 
         <Stack.Screen options={{ title: 'Biblioteca' }} />
-        
+
 
         {/* Biblioteca */}
-        <ScrollView showsVerticalScrollIndicator={false}>
 
-          <View style={estilos.tituloSecao}>
-            <Text style={estilos.textoTitulo}>Cadastrar Jogo</Text>
-          </View>
 
-          <TextInput
-            placeholder="Nome do jogo"
-            style={estilos.input}
-          />
+        <View style={estilos.tituloSecao}>
+          <Text style={estilos.textoTitulo}>Cadastrar Jogo</Text>
+        </View>
 
-          <TextInput
-            placeholder="Conquistas"
-            style={estilos.input}
+        <TextInput
+          style={estilos.input}
+          placeholder="Jogo"
+          value={nome}
+          onChangeText={setNome}
+        />
 
-          />
+        <TextInput
+          placeholder="Conquistas"
+          style={estilos.input}
+          value={conquistas}
+          keyboardType="numeric"
+          onChangeText={(value) => setConquistas(somenteNumeros(value))}
+        />
 
-          <TextInput
-            placeholder="% de conclusão"
-            style={estilos.input}
+        <TextInput
+          placeholder="% de conclusão"
+          style={estilos.input}
+          value={porcentagemConclusao}
+          keyboardType="numeric"
+          onChangeText={(value) => setPorcentagemConclusao(somenteNumeros(value))}
+        />
 
-          />
+        <TextInput
+          placeholder="Tempo de jogo (horas)"
+          style={estilos.input}
+          value={tempoJogo}
+          keyboardType="numeric"
+          onChangeText={(value) => setTempoJogo(somenteNumeros(value))}
+        />
 
-          <TextInput
-            placeholder="Tempo de jogo"
-            style={estilos.input}
+        {/*Cadastrar e Editar*/}
 
-          />
+        <Pressable style={estilos.botaoCadastrar} onPress={cadastrar}>
+          <Text style={estilos.textoCadastrar}>
+            {editandoId !== null ? 'Salvar alterações' : 'Cadastrar'}
+          </Text>
+        </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [
-              estilos.botaoCadastrar,
-              pressed && estilos.botaoPressionado
-            ]}
-
-          >
-            <Text style={estilos.textoBotao}>Cadastrar</Text>
+        {editandoId !== null && (
+          <Pressable style={estilos.botaoCancelar} onPress={limparFormulario}>
+            <Text style={estilos.textoCancelar}>Cancelar edição</Text>
           </Pressable>
+        )}
 
-          <View style={estilos.tituloSecao}>
-            <Text style={estilos.textoTitulo}>Seus Jogos</Text>
-          </View>
+        <View style={estilos.tituloSecaoJogos}>
+          <Text style={estilos.textoTituloJogos}>Seus Jogos</Text>
+        </View>
 
-        </ScrollView>
+        <FlatList showsVerticalScrollIndicator={false}
+          data={jogos}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={estilos.lista}
+          renderItem={({ item }) => (
+            <View style={estilos.card}>
+              <View style={estilos.info}>
+                <Text style={estilos.nome}>{item.nome}</Text>
+                <Text style={estilos.conquistas}>Conquistas: {item.conquistas}</Text>
+                <Text style={estilos.porcentagem}>Conclusão: {item.porcentagemConclusao}%</Text>
+                <Text style={estilos.tempo}>Tempo: {item.tempoJogo} horas</Text>
+
+              </View>
+              <View style={{ flexDirection: 'column', gap: 10 }}>
+                <Pressable onPress={() => excluir(item.id, item.nome, item.conquistas, item.porcentagemConclusao, item.tempoJogo)}>
+                  <Text style={estilos.excluir}>Excluir</Text>
+                </Pressable>
+                <Pressable onPress={() => editar(item)}>
+                  <Text style={estilos.editar}>Editar</Text>
+                </Pressable>
+              </View>
+
+            </View>
+          )}
+          ListEmptyComponent={
+            <Text style={estilos.vazio}>Nenhum Jogo Cadastrado Ainda</Text>
+          }
+        />
+
+
       </SafeAreaView>
     </SafeAreaProvider>
 
@@ -72,83 +203,6 @@ const estilos = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
-  //CABEÇALHO
-  cabecalho: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-
-  botoesCabecalho: {
-    height: 36,
-    backgroundColor: '#274857',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-
-  botaoPesquisa: {
-    backgroundColor: '#274857',
-    height: 44,
-    width: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 10,
-    marginLeft: 10,
-  },
-  imagensBotaoPesquisa: {
-    width: 34,
-    height: 34,
-  },
-
-  botaoPressionado: {
-    transform: [{ scale: 0.95 }],
-    opacity: 0.8
-  },
-
-  textoBotao: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-
-  barraPesquisa: {
-    justifyContent: 'center',
-    flexDirection: 'row',
-    marginTop: 20,
-  },
-
-  textoPesquisa: {
-    paddingLeft: 12,
-    backgroundColor: '#FFFFFF',
-    width: '80%',
-    height: 44,
-    borderRadius: 12,
-    color: '#718096',
-    fontWeight: '500',
-  },
-
-  jogosPopulares: {
-    width: 180,
-    height: 50,
-    marginTop: 25,
-    backgroundColor: '#274857',
-    borderRadius: 12,
-    marginBottom: 15,
-  },
-
-  textoJogosPopulares: {
-    marginTop: 10,
-    paddingLeft: 12,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    width: '100%',
-    height: 50,
-  },
-
   //BIBLIOTECA
   cardBiblioteca: {
     backgroundColor: '#274857',
@@ -158,12 +212,12 @@ const estilos = StyleSheet.create({
   },
 
   nomeJogo: {
-    color: '#fff',
+    color: '#ffffff',
     fontWeight: '700'
   },
 
   infoJogo: {
-    color: '#fff'
+    color: '#ffffff'
   },
 
   input: {
@@ -178,21 +232,116 @@ const estilos = StyleSheet.create({
     backgroundColor: '#274857',
     padding: 10,
     borderRadius: 10,
-    marginTop: 20
+    marginTop: 20,
   },
 
   textoTitulo: {
     color: '#fff',
-    fontWeight: '700'
+    fontWeight: '700',
+  },
+
+  tituloSecaoJogos: {
+    backgroundColor: '#274857',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+
+  textoTituloJogos: {
+    color: '#fff',
+    fontWeight: '700',
   },
 
   botaoCadastrar: {
     backgroundColor: '#274857',
     height: 45,
     borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'green',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 15
+  },
+
+  textoCadastrar: {
+    color: '#ffffff',
+    fontWeight: '700'
+  },
+
+
+
+
+  botaoCancelar: {
+    backgroundColor: '#274857',
+    height: 45,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'red',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 15
+  },
+  textoCancelar: {
+    color: '#ffffff',
+    fontWeight: '700'
+  },
+
+
+
+  //FLATLIST
+  lista: {
+    paddingTop: 16,
+  },
+  card: {
+    backgroundColor: '#274857',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+
+  },
+  info: {
+    flex: 1,
+  },
+  nome: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: "#ffffff",
+    marginBottom: 4,
+  },
+  conquistas: {
+    fontSize: 14,
+    color: '#ffffff',
+  },
+  porcentagem: {
+    fontSize: 14,
+    color: '#ffffff',
+  },
+  tempo: {
+    fontSize: 14,
+    color: '#ffffff',
+  },
+
+  excluir: {
+    color: '#f38ba8',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  editar: {
+    color: '#5992cf',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  vazio: {
+    color: 'black',
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 16,
   },
 
 });

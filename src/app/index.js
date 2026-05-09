@@ -1,82 +1,143 @@
-import React, { useState } from 'react';
-import { Link, Stack} from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { Link, Stack } from 'expo-router';
 import { View, Text, Image, StyleSheet, TextInput, Pressable, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 
 export default function App() {
 
-  // Informações dos jogos
-  const jogos = [
-    {
-      id: 1,
-      nome: "Dark Souls III",
-      descricao: "Dark Souls III continua a expandir os limites da famosa série Souls.",
-      imagem: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/374320/header.jpg"
-    },
-    {
-      id: 2,
-      nome: "Elden Ring",
-      descricao: "Explore um vasto mundo aberto cheio de perigos e mistérios.",
-      imagem: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg"
-    },
-    {
-      id: 3,
-      nome: "Sekiro",
-      descricao: "Uma aventura brutal de samurai com combate extremamente preciso.",
-      imagem: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/814380/header.jpg"
-    },
-    {
-      id: 4,
-      nome: "Counter Strike 2",
-      descricao: "FPS competitivo focado em estratégia, precisão e trabalho em equipe.",
-      imagem: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/730/header.jpg?t=1749053861"
-    },
-    {
-      id: 5,
-      nome: "Lies of P",
-      descricao: "Soulslike sombrio inspirado em Pinóquio com combates desafiadores.",
-      imagem: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1627720/header.jpg"
-    },
-    {
-      id: 6,
-      nome: "The Witcher 3",
-      descricao: "Um RPG épico em um mundo aberto cheio de escolhas e histórias.",
-      imagem: "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg"
-    }
-  ];
 
-  //Conteúdo deslizante lógica
-  const [indiceAtual, setIndiceAtual] = useState(0);
-  const proximo = () => {
-    if (indiceAtual + 2 < jogos.length) {
-      setIndiceAtual(indiceAtual + 2);
-    }
-  };
-  const anterior = () => {
-    if (indiceAtual - 2 >= 0) {
-      setIndiceAtual(indiceAtual - 2);
-    }
-  };
+  const [jogos, setJogos] = useState([]);
+
+
+  useEffect(() => {
+
+    const buscarJogos = async () => {
+
+      try {
+
+        // Pega lista oficial da Steam
+        const respostaLista = await fetch(
+          "https://api.steampowered.com/ISteamApps/GetAppList/v2/"
+        );
+
+        const textoLista = await respostaLista.text();
+
+        if (textoLista.startsWith("<")) {
+          console.log("Steam bloqueou temporariamente a lista");
+          return;
+        }
+
+        const dadosLista = JSON.parse(textoLista);
+
+        const apps = dadosLista.applist.apps;
+
+        const jogosEncontrados = [];
+
+        const idsUsados = new Set();
+
+        // Busca 6 jogos válidos
+        while (jogosEncontrados.length < 6) {
+
+          // Escolhe app aleatório da lista oficial
+          const randomApp =
+            apps[Math.floor(Math.random() * apps.length)];
+
+          const appID = randomApp.appid;
+
+          // Evita repetidos
+          if (idsUsados.has(appID)) {
+            continue;
+          }
+
+          idsUsados.add(appID);
+
+          try {
+
+            const resposta = await fetch(
+              `https://store.steampowered.com/api/appdetails?appids=${appID}&l=brazilian`
+            );
+
+            const texto = await resposta.text();
+
+            // Evita erro HTML
+            if (texto.startsWith("<")) {
+              continue;
+            }
+
+            const dados = JSON.parse(texto);
+
+            const respostaJogo = dados[appID];
+
+            if (!respostaJogo?.success) {
+              continue;
+            }
+
+            const game = respostaJogo.data;
+
+            if (!game) continue;
+
+            // Apenas jogos
+            if (game.type !== "game") {
+              continue;
+            }
+
+            // Precisa ter imagem e descrição
+            if (!game.header_image || !game.short_description) {
+              continue;
+            }
+
+            jogosEncontrados.push({
+              id: appID,
+              nome: game.name,
+              descricao: game.short_description,
+              imagem: game.header_image
+            });
+
+            console.log("Jogo encontrado:", game.name);
+
+            // Delay anti-rate-limit
+            await new Promise(resolve =>
+              setTimeout(resolve, 300)
+            );
+
+          } catch (erro) {
+            console.log("Erro jogo:", erro);
+          }
+
+        }
+
+        setJogos(jogosEncontrados);
+
+      } catch (erro) {
+        console.log("Erro lista:", erro);
+      }
+
+    };
+
+    buscarJogos();
+
+  }, []);
+
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={estilos.safeArea}>
-        <Stack.Screen options={{headerShown: false}}/>
-        
+        <Stack.Screen options={{ headerShown: false }} />
+
         {/* Cabeçalho */}
         <View style={estilos.cabecalho}>
-          <Link href="/index" style={estilos.botoesCabecalho}>
-          <Text style={estilos.textoBotao}>{'Inicio'}</Text>
-        </Link>
+          <Link href="/" style={estilos.botoesCabecalho}>
+            <Text style={estilos.textoBotao}>{'Inicio'}</Text>
+          </Link>
 
           <Link href="/AppBiblioteca" style={estilos.botoesCabecalho}>
-          <Text style={estilos.textoBotao}>{'Biblioteca'}</Text>
-        </Link>
+            <Text style={estilos.textoBotao}>{'Biblioteca'}</Text>
+          </Link>
 
           <Link href="/AppConfig" style={estilos.botoesCabecalho}>
-          <Text style={estilos.textoBotao}>{'Config'}</Text>
-        </Link>
+            <Text style={estilos.textoBotao}>{'Config'}</Text>
+          </Link>
 
         </View>
 
@@ -102,52 +163,29 @@ export default function App() {
         {/* Conteúdo Principal */}
         <ScrollView showsVerticalScrollIndicator={false}>
           {jogos.map((jogo) => (
-            <TouchableOpacity key={jogo.id} onPress={() => alert(jogo.nome)}>
-              <View style={estilos.conteudoPrincipal}>
-                <Image
-                  style={estilos.imagensPrincipal}
-                  source={{ uri: jogo.imagem }}
-                />
 
-                <Text style={estilos.textoImagens}>
-                  {jogo.descricao}
-                </Text>
-              </View>
+            <TouchableOpacity style={{ marginBottom: 10 }} key={jogo.id}>
+              <Link
+                href={{
+                  pathname: "/AppJogo",
+                  params: { id: jogo.id }
+                }}
+              >
+                <View style={estilos.conteudoPrincipal}>
+                  <Image
+                    style={estilos.imagensPrincipal}
+                    source={{ uri: jogo.imagem }}
+                  />
+
+                  <Text style={estilos.textoImagens}>
+                    {jogo.descricao}
+                  </Text>
+                </View>
+              </Link>
             </TouchableOpacity>
+
           ))}
         </ScrollView>
-
-        {/* Conteúdo Principal Deslizante*/}
-        {/* Botão esquerdo */}
-        <View style={estilos.conteudoDeslizarGeral}>
-          <TouchableOpacity onPress={anterior}>
-            <Image
-              style={estilos.deslizarInvertido}
-              source={{ uri: 'https://images.vexels.com/media/users/3/136720/isolated/preview/aa2c8886b534f88cf3c788d11ee553b4-seta-direita.png' }}
-            />
-          </TouchableOpacity>
-
-
-          {jogos.slice(indiceAtual, indiceAtual + 2).map((jogo) => (
-            <TouchableOpacity key={jogo.id} onPress={() => alert("Em breve")}>
-              <View style={estilos.conteudoDeslizar}>
-                <Image
-                  style={estilos.imagensDeslizar}
-                  source={{ uri: jogo.imagem }}
-                />
-                <Text style={estilos.textoImagensDesliar}>{jogo.nome}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-
-          {/* Botão direito */}
-          <TouchableOpacity onPress={proximo}>
-            <Image
-              style={estilos.deslizar}
-              source={{ uri: 'https://images.vexels.com/media/users/3/136720/isolated/preview/aa2c8886b534f88cf3c788d11ee553b4-seta-direita.png' }}
-            />
-          </TouchableOpacity>
-        </View>
 
       </SafeAreaView>
     </SafeAreaProvider>
@@ -172,7 +210,9 @@ const estilos = StyleSheet.create({
   },
 
   botoesCabecalho: {
-    height: 36,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#274857',
     justifyContent: 'center',
     alignItems: 'center',
@@ -201,7 +241,7 @@ const estilos = StyleSheet.create({
 
   textoBotao: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
   },
 
@@ -227,7 +267,7 @@ const estilos = StyleSheet.create({
     marginTop: 25,
     backgroundColor: '#274857',
     borderRadius: 12,
-    marginBottom: 15,
+    marginBottom: 10,
   },
 
   textoJogosPopulares: {
@@ -242,73 +282,28 @@ const estilos = StyleSheet.create({
 
   //CONTEUDO PRINCIPAL
   imagensPrincipal: {
-    width: 150,
+    width: 234,
     height: 110,
     borderRadius: 10,
   },
 
   conteudoPrincipal: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     backgroundColor: '#274857',
     width: '100%',
-    minHeight: 95,
+    minHeight: 110,
     borderRadius: 12,
-    marginTop: 18,
     padding: 8,
     alignItems: 'center',
     gap: 10,
   },
 
   textoImagens: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     flex: 1,
     flexWrap: 'wrap',
     color: '#FFFFFF',
-  },
-
-  //CONTEUDO PRINCIPAL DESLIZANTE
-  conteudoDeslizar: {
-    backgroundColor: '#274857',
-    width: 140,
-    height: 110,
-    borderRadius: 12,
-    marginTop: 20,
-    alignItems: 'center',
-    padding: 6,
-    marginHorizontal: 6,
-  },
-
-  imagensDeslizar: {
-    width: 128,
-    height: 60,
-    borderRadius: 8,
-  },
-
-  textoImagensDesliar: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-
-  conteudoDeslizarGeral: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  deslizar: {
-    width: 28,
-    height: 28,
-    marginTop: 20,
-  },
-
-  deslizarInvertido: {
-    transform: [{ rotate: '180deg' }],
-    width: 28,
-    height: 28,
-    marginTop: 20,
-  },
+  }
 
 });
